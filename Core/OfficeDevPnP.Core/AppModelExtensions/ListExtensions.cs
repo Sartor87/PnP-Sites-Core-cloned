@@ -1312,5 +1312,115 @@ namespace Microsoft.SharePoint.Client
             }
             list.SetPropertyBagValue(reIndexKey, searchversion + 1);
         }
+
+        #region Key Filters and Managed Metadata Navigation Hierarchies
+        /// <summary>
+        /// Create Navigation Hierarchies and add key filters to a list
+        /// </summary>
+        /// <param name="list">List instance</param>
+        /// <param name="navigationHierarchyFields">Field title or internal names collection for navigation hierarcies</param>
+        /// <param name="keyFiltersFields">Field title or internal names collection for key filters</param>
+        /// <param name="autoIndex">Switch for auto index</param>
+        public static void CreateKeyFiltersNavHierarchies(this List list, string[] navigationHierarchyFields, string[] keyFiltersFields, bool autoIndex = true)
+        {
+            ClientContext ctx = (ClientContext)list.Context;
+            var navFlds = new List<Field>();
+            var keyFiltersFlds = new List<Field>();
+
+            foreach (string fieldName in navigationHierarchyFields)
+            {
+                navFlds.Add(list.Fields.GetByInternalNameOrTitle(fieldName));
+            }
+
+            foreach (string fieldName in keyFiltersFields)
+            {
+                keyFiltersFlds.Add(list.Fields.GetByInternalNameOrTitle(fieldName));
+            }
+
+            ctx.Load(list, p => p.RootFolder, p => p.RootFolder.Properties);
+            foreach (Field field in navFlds)
+            {
+                ctx.Load(field, f => f.Id, f => f.InternalName, f => f.TypeAsString, f => f.Title);
+            }
+            foreach (Field field in keyFiltersFlds)
+            {
+                ctx.Load(field, f => f.Id, f => f.InternalName, f => f.TypeAsString, f => f.Title);
+            }
+            ctx.ExecuteQueryRetry();
+
+            StringBuilder navSettings = new StringBuilder();
+            navSettings.Append("<MetadataNavigationSettings SchemaVersion='1' IsEnabled='True' AutoIndex='" + autoIndex.ToString() + "'>");
+            navSettings.Append("<NavigationHierarchies><FolderHierarchy HideFoldersNode='False' />");
+            foreach (Field field in navFlds)
+            {
+                // TO-DO: add support only for supported field types
+                navSettings.AppendFormat("<MetadataField FieldID='{0}' FieldType='{1}' CachedName='{2}' CachedDisplayName='{3}' />",
+                        field.Id, field.TypeAsString, field.InternalName, field.Title);
+            }
+            navSettings.Append("</NavigationHierarchies>");
+            navSettings.Append("<KeyFilters>");
+            foreach (Field field in keyFiltersFlds)
+            {
+                // TO-DO: add support only for supported field types
+                navSettings.AppendFormat("<MetadataField FieldID='{0}' FieldType='{1}' CachedName='{2}' CachedDisplayName='{3}' />",
+                        field.Id, field.TypeAsString, field.InternalName, field.Title);
+            }
+            navSettings.Append("</KeyFilters>");
+            navSettings.Append("</MetadataNavigationSettings>");
+
+            list.RootFolder.Properties["client_MOSS_MetadataNavigationSettings"] = navSettings.ToString();
+            list.RootFolder.Update();
+            list.Update();
+            ctx.ExecuteQueryRetry();
+        }
+
+        /// <summary>
+        /// Create Navigation Hierarchies and add key filters to a list
+        /// </summary>
+        /// <param name="list">List instance</param>
+        /// <param name="navigationHierarchyFields">Field objects collection for navigation hierarcies</param>
+        /// <param name="keyFiltersFields">Field objects collection for key filters</param>
+        /// <param name="autoIndex">Switch for auto index</param>
+        public static void CreateKeyFiltersNavHierarchies(this List list, IEnumerable<Field> navigationHierarchyFields, IEnumerable<Field> keyFiltersFields, bool autoIndex = true)
+        {
+            ClientContext ctx = (ClientContext)list.Context;
+
+            ctx.Load(list, p => p.RootFolder, p => p.RootFolder.Properties);
+            foreach (Field field in navigationHierarchyFields)
+            {
+                ctx.Load(field, f => f.Id, f => f.InternalName, f => f.TypeAsString, f => f.Title);
+            }
+            foreach (Field field in keyFiltersFields)
+            {
+                ctx.Load(field, f => f.Id, f => f.InternalName, f => f.TypeAsString, f => f.Title);
+            }
+            ctx.ExecuteQueryRetry();
+
+            StringBuilder navSettings = new StringBuilder();
+            navSettings.Append("<MetadataNavigationSettings SchemaVersion='1' IsEnabled='True' AutoIndex='" + autoIndex.ToString() + "'>");
+            navSettings.Append("<NavigationHierarchies><FolderHierarchy HideFoldersNode='False' />");
+            foreach (Field field in navigationHierarchyFields)
+            {
+                // TO-DO: add support only for supported field types
+                navSettings.AppendFormat("<MetadataField FieldID='{0}' FieldType='{1}' CachedName='{2}' CachedDisplayName='{3}' />",
+                        field.Id, field.TypeAsString, field.InternalName, field.Title);
+            }
+            navSettings.Append("</NavigationHierarchies>");
+            navSettings.Append("<KeyFilters>");
+            foreach (Field field in keyFiltersFields)
+            {
+                // TO-DO: add support only for supported field types
+                navSettings.AppendFormat("<MetadataField FieldID='{0}' FieldType='{1}' CachedName='{2}' CachedDisplayName='{3}' />",
+                        field.Id, field.TypeAsString, field.InternalName, field.Title);
+            }
+            navSettings.Append("</KeyFilters>");
+            navSettings.Append("</MetadataNavigationSettings>");
+
+            list.RootFolder.Properties["client_MOSS_MetadataNavigationSettings"] = navSettings.ToString();
+            list.RootFolder.Update();
+            list.Update();
+            ctx.ExecuteQueryRetry();
+        }
+        #endregion
     }
 }
